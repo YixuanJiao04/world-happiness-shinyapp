@@ -1,6 +1,7 @@
 library(shiny)
 library(plotly)
 library(tidyverse)
+library(viridis)
 library(shinythemes)
 library(shinycssloaders)
 library(DT)
@@ -64,7 +65,8 @@ ui <- fluidPage(
                                       selected = 2021),
                           checkboxGroupInput(inputId = "region_comparison_continent",
                                          label = "Select Regions",
-                                         choices = unique(happy$regional_indicator)),
+                                         choices = unique(happy$regional_indicator),
+                                         selected = c("North America and ANZ","Sub-Saharan Africa")),
                           selectInput(inputId = "region_comparison_variables",
                                       label = "Select factor you interested in",
                                       choices = colnames(happy)[c(-1:-3,-11)],
@@ -146,12 +148,14 @@ server <- function(input,output) {
       mutate(regional_indicator = fct_reorder(regional_indicator,ladder_score)) %>%
       ggplot(aes_string(x = input$var1, y = input$var2)) + 
       geom_point(aes( color = regional_indicator)) +
-      scale_color_viridis(discrete = TRUE, option = "D") +
-      theme(aspect.ratio = 1)
+      scale_color_viridis(discrete = TRUE, option = "D")
   })
   
-  output$corr_text({
-    paste0("hahahahah")
+  output$corr_text <- renderText({
+    v1 <- happy[[input$var1]]
+    v2 <- happy[[input$var2]]
+    corr_val <- as.character(round(cor(v1,v2),2))
+    paste("The correlation is:",corr_val)
   })
 }
 
