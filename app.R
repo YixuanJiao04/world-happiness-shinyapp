@@ -62,6 +62,7 @@ ui <- fluidPage(
                         ),
                         mainPanel(
                           plotlyOutput(outputId = "model_plotly"),
+                          textOutput(outputId = "model_fit"),
                           helpText("Rotate the graph to see the spacial distribution (Size of the markers represents gdp per capital, color represents region,size of fitted point is fixed inorder to get better visual effect)")
                         )
                       )),
@@ -179,7 +180,19 @@ server <- function(input,output) {
                 z = fitted_ladder,
                 marker = list(size = 10, color = 'blue'))
   })
-  
+  output$model_fit <- renderText({
+    req(input$new_region)
+    req(input$new_gdp)
+    req(input$new_social_support)
+    req(input$new_freedom)
+    logged_gdp <- log(input$new_gdp)
+    new_point <- data.frame(regional_indicator = c(input$new_region),
+                            logged_gdp_per_capita = c(logged_gdp),
+                            social_support = c(input$new_social_support),
+                            freedom_to_make_life_choices = c(input$new_freedom))
+    fitted_ladder <- predict(model, newdata = new_point) %>% as.numeric %>% round(2) %>% as.character
+    paste("The fitted ladder score is", fitted_ladder)
+  })
   output$countries_comparison_boxplot <- renderPlot({
     countries_happy_filtered() %>%
       ggplot(aes_string(y = input$countries_comparison_variables, x = 'country_name', color = 'country_name')) +
