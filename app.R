@@ -26,11 +26,45 @@ for (i in 1:length(code_name)){
 }
 
 happy <- left_join(happy,iso_code)
+
+model <- lm(data = happy, formula = ladder_score ~ regional_indicator+ logged_gdp_per_capita + social_support + freedom_to_make_life_choices + logged_gdp_per_capita*freedom_to_make_life_choices)
 #Design UI
 ui <- fluidPage(
   #navbar includes 4 tab panel in total
   navbarPage(title = "World Happiness Data Explore", theme = shinytheme("cosmo"),
              #lay out inside the tabpanel
+             tabPanel("Model", fluid = TRUE,
+                      titlePanel("3D Demonstration of Our Final Model"),
+                      sidebarLayout(
+                        sidebarPanel(
+                          selectInput(inputId = "new_region",
+                                      label = "Choose a region",
+                                      choices = unique(happy$regional_indicator),
+                                      selected = "North America and ANZ"),
+                          sliderInput(inputId = "new_gdp",
+                                      label = "Input GDP per Capita",
+                                      min = 500,
+                                      max = 120000,
+                                      value = 100000),
+                          sliderInput(inputId = "new_social_support",
+                                      label = "Input Social support index",
+                                      min = 0.1,
+                                      max = 1,
+                                      value = 0.8,
+                                      step = 0.01),
+                          sliderInput(inputId = "new_freedom",
+                                      label = "Input freedom to make life choices index",
+                                      min = 0.1,
+                                      max = 1,
+                                      value = 0.8,
+                                      step = 0.01),
+                          helpText("Try different values to see how would fitted ladder score change")
+                        ),
+                        mainPanel(
+                          plotlyOutput(outputId = "model_plotly"),
+                          helpText("Rotate the graph to see the spacial distribution (Size of the markers represents gdp per capital, color represents region,size of fitted point is fixed inorder to get better visual effect)")
+                        )
+                      )),
              tabPanel("Country Comparison", fluid = TRUE,
                       fluidRow(
                         titlePanel("Country Comparison"),
@@ -114,6 +148,38 @@ server <- function(input,output) {
   })
   
   #Rendering output
+  output$model_plotly <- renderPlotly({
+    req(input$new_region)
+    req(input$new_gdp)
+    req(input$new_social_support)
+    req(input$new_freedom)
+    logged_gdp <- log(input$new_gdp)
+    new_point <- data.frame(regional_indicator = c(input$new_region),
+                            logged_gdp_per_capita = c(logged_gdp),
+                            social_support = c(input$new_social_support),
+                            freedom_to_make_life_choices = c(input$new_freedom))
+    fitted_ladder <- predict(model, newdata = new_point) %>% as.numeric
+    happy %>% 
+      filter(year == 2021) %>%
+      mutate(gdp_per_capita = exp(logged_gdp_per_capita)) %>% 
+      mutate(regional_indicator = fct_reorder(regional_indicator,ladder_score)) %>%
+      plot_ly(x = ~social_support, 
+              y = ~freedom_to_make_life_choices, 
+              z = ~ladder_score, 
+              type="scatter3d", 
+              mode="markers",
+              color = ~regional_indicator,
+              marker = list(symbol = 'circle', sizemode = 'diameter'),
+              size = ~gdp_per_capita,
+              sizes = c(5,100),
+              opacity = 0.4,
+              showlegend = FALSE) %>%
+      add_trace(x = input$new_social_support,
+                y = input$new_freedom,
+                z = fitted_ladder,
+                marker = list(size = 10, color = 'blue'))
+  })
+  
   output$countries_comparison_boxplot <- renderPlot({
     countries_happy_filtered() %>%
       ggplot(aes_string(y = input$countries_comparison_variables, x = 'country_name', color = 'country_name')) +
@@ -155,7 +221,7 @@ server <- function(input,output) {
     v1 <- happy[[input$var1]]
     v2 <- happy[[input$var2]]
     corr_val <- as.character(round(cor(v1,v2),2))
-    paste("The correlation is:",corr_val)
+    paste("The correlation bewteen",input$var1,"and",input$var2,"is:",corr_val)
   })
 }
 

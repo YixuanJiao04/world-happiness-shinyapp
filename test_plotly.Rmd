@@ -1,0 +1,41 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+
+```{r}
+happy %>% 
+  filter(year == 2021) %>%
+  mutate(gdp_per_capita = exp(logged_gdp_per_capita)) %>% 
+  mutate(regional_indicator = fct_reorder(regional_indicator,ladder_score)) %>%
+  plot_ly(x = ~social_support, 
+          y = ~freedom_to_make_life_choices, 
+          z = ~ladder_score, 
+          type="scatter3d", 
+          mode="markers",
+          color = ~regional_indicator,
+          marker = list(symbol = 'circle', sizemode = 'diameter'),
+          size = ~gdp_per_capita,
+          sizes = c(0.7,100),
+          opacity = 0.6,
+          showlegend = FALSE) %>%
+  add_trace(x = 0.5,
+            y = 0.7,
+            z = 6,
+            marker = list(size = 10, color = 'blue'))
+```
+
+```{r}
+model <- lm(data = happy, formula = ladder_score ~ regional_indicator+ logged_gdp_per_capita + social_support + freedom_to_make_life_choices + logged_gdp_per_capita*freedom_to_make_life_choices)
+
+new_point <- data.frame(regional_indicator = c("East Asia"),
+                        logged_gdp_per_capita = c(9),
+                        social_support = c(0.5),
+                        freedom_to_make_life_choices = c(0.5))
+
+fitted_ladder <- predict(model, newdata = new_point) %>% as.numeric
+```
+
